@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import useTranslatorStore from '../store/translatorStore'
+import useTranslatorStore, { translateWithAPI } from '../store/translatorStore'
 
 export default function CameraTranslator() {
   const {
@@ -16,8 +16,9 @@ export default function CameraTranslator() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const LANGUAGES = {
+  const LANGUAGES: Record<string, string> = {
     pt: 'Português',
     en: 'English',
     es: 'Español',
@@ -32,7 +33,6 @@ export default function CameraTranslator() {
 
   const toggleCamera = async () => {
     if (isCameraActive) {
-      // Parar câmera
       if (videoRef.current?.srcObject) {
         const tracks = (videoRef.current.srcObject as MediaStream).getTracks()
         tracks.forEach(track => track.stop())
@@ -57,28 +57,39 @@ export default function CameraTranslator() {
   }
 
   const captureAndTranslate = async () => {
-    if (!videoRef.current) return
+    if (!videoRef.current || !canvasRef.current) return
 
     setIsLoading(true)
+    setError(null)
     try {
-      // Simulação de OCR e tradução
-      // Em produção, usaria: Tesseract.js para OCR + API de tradução
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Capturar frame do vídeo
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      const context = canvas.getContext('2d')
       
-      const mockRecognizedText = 'Texto capturado da câmera'
-      setRecognizedText(mockRecognizedText)
-      
-      const mockTranslatedText = `[${targetLanguage}] ${mockRecognizedText}`
-      setTranslatedText(mockTranslatedText)
+      if (context) {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        context.drawImage(video, 0, 0)
+        
+        // Usar Tesseract.js para OCR (vou adicionar depois)
+        // Por enquanto, simulamos com texto de exemplo
+        const mockText = 'Hello world, how are you today?'
+        setRecognizedText(mockText)
+        
+        // Traduzir com API real
+        const result = await translateWithAPI(mockText, sourceLanguage, targetLanguage)
+        setTranslatedText(result)
 
-      addToHistory({
-        id: Date.now().toString(),
-        sourceText: mockRecognizedText,
-        translatedText: mockTranslatedText,
-        sourceLanguage,
-        targetLanguage,
-        timestamp: Date.now()
-      })
+        addToHistory({
+          id: Date.now().toString(),
+          sourceText: mockText,
+          translatedText: result,
+          sourceLanguage,
+          targetLanguage,
+          timestamp: Date.now()
+        })
+      }
     } catch (err) {
       setError('Erro ao processar imagem')
     } finally {
@@ -142,6 +153,9 @@ export default function CameraTranslator() {
               </div>
             </div>
           )}
+          
+          {/* Canvas hidden para captura */}
+          <canvas ref={canvasRef} className="hidden" />
         </div>
 
         {/* Botões */}

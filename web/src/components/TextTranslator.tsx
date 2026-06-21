@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import useTranslatorStore from '../store/translatorStore'
+import useTranslatorStore, { translateWithAPI } from '../store/translatorStore'
 
-const LANGUAGES = {
+const LANGUAGES: Record<string, string> = {
   pt: 'Português',
   en: 'English',
   es: 'Español',
@@ -25,18 +25,21 @@ export default function TextTranslator() {
     setSourceText,
     setTranslatedText,
     swapLanguages,
-    addToHistory
+    addToHistory,
+    isTranslating,
+    setIsTranslating,
+    translationError,
+    setTranslationError
   } = useTranslatorStore()
-
-  const [isLoading, setIsLoading] = useState(false)
 
   const handleTranslate = async () => {
     if (!sourceText.trim()) return
 
-    setIsLoading(true)
+    setIsTranslating(true)
+    setTranslationError(null)
+    
     try {
-      await new Promise(resolve => setTimeout(resolve, 500))
-      const result = `Tradução de: "${sourceText}"`
+      const result = await translateWithAPI(sourceText, sourceLanguage, targetLanguage)
       setTranslatedText(result)
       
       addToHistory({
@@ -47,14 +50,18 @@ export default function TextTranslator() {
         targetLanguage,
         timestamp: Date.now()
       })
+    } catch (error) {
+      setTranslationError(error instanceof Error ? error.message : 'Erro na tradução')
     } finally {
-      setIsLoading(false)
+      setIsTranslating(false)
     }
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="bg-white rounded-xl shadow-lg p-6">
+      <h2 className="text-xl font-bold text-gray-800 mb-4">📝 Tradutor de Texto</h2>
+      
+      <div className="flex items-center gap-4 mb-4">
         <select
           value={sourceLanguage}
           onChange={(e) => setSourceLanguage(e.target.value)}
@@ -116,20 +123,45 @@ export default function TextTranslator() {
         </div>
       </div>
 
+      {/* Erro */}
+      {translationError && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+          ⚠️ {translationError}
+        </div>
+      )}
+
       <div className="flex gap-3">
         <button
           onClick={handleTranslate}
-          disabled={!sourceText.trim() || isLoading}
-          className="flex-1 bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          disabled={!sourceText.trim() || isTranslating}
+          className="flex-1 bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
         >
-          {isLoading ? '⏳ Traduzindo...' : '🔄 Traduzir'}
+          {isTranslating ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              Traduzindo...
+            </>
+          ) : (
+            '🔄 Traduzir'
+          )}
         </button>
         <button
-          onClick={() => setSourceText('')}
+          onClick={() => {
+            setSourceText('')
+            setTranslatedText('')
+            setTranslationError(null)
+          }}
           className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition font-medium"
         >
           Limpar
         </button>
+      </div>
+
+      {/* Info sobre API */}
+      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+        <p className="text-xs text-blue-700">
+          💡 Powered by MyMemory Translation API
+        </p>
       </div>
     </div>
   )

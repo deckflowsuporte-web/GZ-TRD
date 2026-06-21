@@ -21,8 +21,12 @@ interface TranslatorState {
   // Tradução
   sourceText: string
   translatedText: string
+  isTranslating: boolean
+  translationError: string | null
   setSourceText: (text: string) => void
   setTranslatedText: (text: string) => void
+  setIsTranslating: (value: boolean) => void
+  setTranslationError: (error: string | null) => void
 
   // Histórico
   history: Translation[]
@@ -36,11 +40,53 @@ interface TranslatorState {
   downloadLanguage: (code: string) => Promise<void>
 }
 
-const translateOffline = async (text: string, source: string, target: string): Promise<string> => {
-  // Simulação de tradução offline
-  // Em produção, usaria ML Kit Translation API
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return `[${target.toUpperCase()}] ${text}`
+// Cache local para traduções (LRU cache)
+const translationCache = new Map<string, string>()
+const MAX_CACHE_SIZE = 100
+
+// Tradução usando MyMemory API (gratuita, 1000req/dia)
+const translateWithAPI = async (text: string, source: string, target: string): Promise<string> => {
+  // Verificar cache primeiro
+  const cacheKey = `${source}|${target}|${text}`
+  if (translationCache.has(cacheKey)) {
+    return translationCache.get(cacheKey)!
+  }
+
+  // Preparar texto para API
+  const encodedText = encodeURIComponent(text)
+  const langPair = `${source}|${target}`
+  
+  try {
+    // MyMemory API - gratuito até 1000 palavras/dia
+    const response = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=${langPair}`
+    )
+    
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    if (data.responseStatus === 200 && data.responseData) {
+      const translatedText = data.responseData.translatedText
+      
+      // Salvar no cache
+      if (translationCache.size >= MAX_CACHE_SIZE) {
+        // Remover entrada mais antiga
+        const firstKey = translationCache.keys().next().value
+        translationCache.delete(firstKey)
+      }
+      translationCache.set(cacheKey, translatedText)
+      
+      return translatedText
+    } else {
+      throw new Error(data.responseDetails || 'Translation failed')
+    }
+  } catch (error) {
+    console.error('Translation error:', error)
+    throw error
+  }
 }
 
 export const useTranslatorStore = create<TranslatorState>()(
@@ -61,8 +107,12 @@ export const useTranslatorStore = create<TranslatorState>()(
       // Textos
       sourceText: '',
       translatedText: '',
+      isTranslating: false,
+      translationError: null,
       setSourceText: (text) => set({ sourceText: text }),
       setTranslatedText: (text) => set({ translatedText: text }),
+      setIsTranslating: (value) => set({ isTranslating: value }),
+      setTranslationError: (error) => set({ translationError: error }),
 
       // Histórico
       history: [],
@@ -80,8 +130,8 @@ export const useTranslatorStore = create<TranslatorState>()(
       downloadLanguage: async (code) => {
         set({ isDownloading: code })
         try {
-          // Simular download de modelo offline
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          // MyMemory não precisa de download, mas simulamos para UI consistente
+          await new Promise(resolve => setTimeout(resolve, 1000))
           
           set((state) => ({
             downloadedLanguages: [...state.downloadedLanguages, code],
@@ -105,4 +155,4 @@ export const useTranslatorStore = create<TranslatorState>()(
   )
 )
 
-export { translateOffline }
+export { translateWithAPI }

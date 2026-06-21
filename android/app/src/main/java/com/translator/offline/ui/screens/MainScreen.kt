@@ -145,8 +145,15 @@ private fun TranslatorContent(
                         modifier = Modifier.size(20.dp),
                         color = MaterialTheme.colorScheme.onPrimary
                     )
+                    if (uiState.isModelDownloading) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Baixando modelo...")
+                    } else {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Traduzindo...")
+                    }
                 } else {
-                    Text("Traduzir")
+                    Text("🔄 Traduzir")
                 }
             }
 
@@ -158,14 +165,51 @@ private fun TranslatorContent(
             }
         }
 
+        // Info sobre download de modelo
+        if (uiState.isModelDownloading) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Baixando modelo de tradução offline...",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+
         // Erro
         uiState.error?.let { error ->
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "⚠️ $error",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
     }
 }

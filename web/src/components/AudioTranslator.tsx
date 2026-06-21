@@ -1,5 +1,19 @@
 import { useState } from 'react'
-import useTranslatorStore from '../store/translatorStore'
+import useTranslatorStore, { translateWithAPI } from '../store/translatorStore'
+
+// Mapeamento de códigos de idioma para Speech API
+const SPEECH_LANGUAGES: Record<string, string> = {
+  pt: 'pt-BR',
+  en: 'en-US',
+  es: 'es-ES',
+  fr: 'fr-FR',
+  de: 'de-DE',
+  it: 'it-IT',
+  ja: 'ja-JP',
+  zh: 'zh-CN',
+  ru: 'ru-RU',
+  ar: 'ar-SA'
+}
 
 export default function AudioTranslator() {
   const {
@@ -16,7 +30,7 @@ export default function AudioTranslator() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const LANGUAGES = {
+  const LANGUAGES: Record<string, string> = {
     pt: 'Português',
     en: 'English',
     es: 'Español',
@@ -30,33 +44,42 @@ export default function AudioTranslator() {
   }
 
   const startListening = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      setError('Seu navegador não suporta reconhecimento de voz')
+    const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    
+    if (!SpeechRecognitionAPI) {
+      setError('Seu navegador não suporta reconhecimento de voz. Tente usar Chrome.')
       return
     }
 
-    const SpeechRecognition = (window.SpeechRecognition || window.webkitSpeechRecognition)
-    const recognition = new SpeechRecognition()
+    const recognition = new SpeechRecognitionAPI()
     
-    recognition.lang = sourceLanguage
+    const speechLang = SPEECH_LANGUAGES[sourceLanguage] || 'en-US'
+    recognition.lang = speechLang
     recognition.continuous = false
     recognition.interimResults = true
+    recognition.maxAlternatives = 1
 
     recognition.onstart = () => {
       setIsListening(true)
       setError(null)
+      setRecognizedText('')
+      setTranslatedText('')
     }
 
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: any) => {
       const transcript = Array.from(event.results)
-        .map(result => result[0].transcript)
+        .map((result: any) => result[0].transcript)
         .join('')
       
       setRecognizedText(transcript)
     }
 
-    recognition.onerror = (event) => {
-      setError(`Erro no reconhecimento: ${event.error}`)
+    recognition.onerror = (event: any) => {
+      if (event.error === 'no-speech') {
+        setError('Nenhum discurso detectado. Tente falar mais alto.')
+      } else {
+        setError(`Erro no reconhecimento: ${event.error}`)
+      }
       setIsListening(false)
     }
 
@@ -67,16 +90,18 @@ export default function AudioTranslator() {
       }
     }
 
-    recognition.start()
+    try {
+      recognition.start()
+    } catch (err) {
+      setError('Erro ao iniciar o reconhecimento de voz')
+    }
   }
 
   const translateText = async (text: string) => {
     setIsLoading(true)
+    setError(null)
     try {
-      // Simulação de tradução
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      const result = `[${targetLanguage}] ${text}`
+      const result = await translateWithAPI(text, sourceLanguage, targetLanguage)
       setTranslatedText(result)
 
       addToHistory({
@@ -95,8 +120,14 @@ export default function AudioTranslator() {
   }
 
   const speakText = (text: string, lang: string) => {
+    if (!('speechSynthesis' in window)) {
+      setError('Seu navegador não suporta síntese de voz')
+      return
+    }
+    
     const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = lang
+    const speechLang = SPEECH_LANGUAGES[lang] || 'en-US'
+    utterance.lang = speechLang
     speechSynthesis.speak(utterance)
   }
 

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.translator.offline.domain.model.Language
 import com.translator.offline.domain.model.Translation
+import com.translator.offline.domain.repository.TranslationRepository
 import com.translator.offline.domain.usecase.GetTranslationHistoryUseCase
 import com.translator.offline.domain.usecase.TranslateTextUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +22,7 @@ data class TranslatorUiState(
     val sourceLanguage: Language = Language.PORTUGUESE,
     val targetLanguage: Language = Language.ENGLISH,
     val isLoading: Boolean = false,
+    val isModelDownloading: Boolean = false,
     val error: String? = null,
     val history: List<Translation> = emptyList()
 )
@@ -28,7 +30,8 @@ data class TranslatorUiState(
 @HiltViewModel
 class TranslatorViewModel @Inject constructor(
     private val translateTextUseCase: TranslateTextUseCase,
-    private val getTranslationHistoryUseCase: GetTranslationHistoryUseCase
+    private val getTranslationHistoryUseCase: GetTranslationHistoryUseCase,
+    private val repository: TranslationRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TranslatorUiState())
@@ -74,17 +77,38 @@ class TranslatorViewModel @Inject constructor(
         if (currentState.sourceText.isBlank()) return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, isModelDownloading = true, error = null) }
 
             translateTextUseCase(
                 text = currentState.sourceText,
                 sourceLang = currentState.sourceLanguage.code,
                 targetLang = currentState.targetLanguage.code
             ).onSuccess { translatedText ->
-                _uiState.update { it.copy(translatedText = translatedText, isLoading = false) }
+                // Salvar no histórico
+                val translation = Translation(
+                    id = UUID.randomUUID().toString(),
+                    sourceText = currentState.sourceText,
+                    translatedText = translatedText,
+                    sourceLanguage = currentState.sourceLanguage.code,
+                    targetLanguage = currentState.targetLanguage.code,
+                    timestamp = System.currentTimeMillis()
+                )
+                repository.saveTranslation(translation)
+                
+                _uiState.update { 
+                    it.copy(
+                        translatedText = translatedText, 
+                        isLoading = false,
+                        isModelDownloading = false
+                    ) 
+                }
             }.onFailure { exception ->
                 _uiState.update { 
-                    it.copy(error = exception.message, isLoading = false) 
+                    it.copy(
+                        error = exception.message ?: "Erro na tradução",
+                        isLoading = false,
+                        isModelDownloading = false
+                    ) 
                 }
             }
         }
