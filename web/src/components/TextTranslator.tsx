@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import useTranslatorStore, { translateWithAPI } from '../store/translatorStore'
+import useTranslatorStore, { translateWithNLLB } from '../store/translatorStore'
 
 const LANGUAGES: Record<string, string> = {
   pt: 'Português',
@@ -27,7 +26,11 @@ export default function TextTranslator() {
     swapLanguages,
     addToHistory,
     isTranslating,
+    isModelLoading,
+    modelProgress,
     setIsTranslating,
+    setIsModelLoading,
+    setModelProgress,
     translationError,
     setTranslationError
   } = useTranslatorStore()
@@ -36,10 +39,18 @@ export default function TextTranslator() {
     if (!sourceText.trim()) return
 
     setIsTranslating(true)
+    setIsModelLoading(true)
     setTranslationError(null)
     
     try {
-      const result = await translateWithAPI(sourceText, sourceLanguage, targetLanguage)
+      const result = await translateWithNLLB(
+        sourceText, 
+        sourceLanguage, 
+        targetLanguage,
+        (progress) => {
+          setModelProgress(progress)
+        }
+      )
       setTranslatedText(result)
       
       addToHistory({
@@ -54,6 +65,8 @@ export default function TextTranslator() {
       setTranslationError(error instanceof Error ? error.message : 'Erro na tradução')
     } finally {
       setIsTranslating(false)
+      setIsModelLoading(false)
+      setModelProgress(0)
     }
   }
 
@@ -123,6 +136,23 @@ export default function TextTranslator() {
         </div>
       </div>
 
+      {/* Progresso do modelo */}
+      {isModelLoading && (
+        <div className="mb-4 p-3 bg-purple-50 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="animate-spin">🤖</span>
+            <span className="text-sm text-purple-700">Carregando modelo NLLB-200...</span>
+          </div>
+          <div className="w-full bg-purple-200 rounded-full h-2">
+            <div 
+              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+              style={{ width: `${modelProgress}%` }}
+            />
+          </div>
+          <p className="text-xs text-purple-600 mt-1">{modelProgress}%</p>
+        </div>
+      )}
+
       {/* Erro */}
       {translationError && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
@@ -157,10 +187,10 @@ export default function TextTranslator() {
         </button>
       </div>
 
-      {/* Info sobre API */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-xs text-blue-700">
-          💡 Powered by MyMemory Translation API
+      {/* Info sobre modelo local */}
+      <div className="mt-4 p-3 bg-green-50 rounded-lg">
+        <p className="text-xs text-green-700">
+          🤖 NLLB-200 (Meta AI) - Tradução 100% local, sem internet
         </p>
       </div>
     </div>
