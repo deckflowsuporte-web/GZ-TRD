@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tradutor Offline</string>
+    <string name="translate">Traduzir</string>
+    <string name="clear">Limpar</string>
+    <string name="swap_languages">Trocar idiomas</string>
+    <string name="source_text">Texto original</string>
+    <string name="translated_text">Tradução</string>
+    <string name="source_text_hint">Digite o texto para traduzir...</string>
+    <string name="translated_text_hint">Resultado aparecerá aqui...</string>
+    <string name="history">Histórico</string>
+    <string name="no_history">Nenhum histórico ainda</string>
+    <string name="error_empty_text">Texto não pode estar vazio</string>
+    <string name="error_translation_failed">Falha na tradução</string>
+    
+    <!-- Idiomas -->
+    <string name="lang_portuguese">Português</string>
+    <string name="lang_english">English</string>
+    <string name="lang_spanish">Español</string>
+    <string name="lang_french">Français</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_italian">Italiano</string>
+    <string name="lang_japanese">日本語</string>
+    <string name="lang_chinese">中文</string>
+    <string name="lang_russian">Русский</string>
+    <string name="lang_arabic">العربية</string>
+</resources>
