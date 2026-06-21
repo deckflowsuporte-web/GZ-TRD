@@ -1,12 +1,10 @@
 package com.translator.offline.data.repository
 
-import android.content.Context
 import com.translator.offline.data.db.dao.TranslationHistoryDao
 import com.translator.offline.data.db.entity.TranslationHistoryEntity
-import com.translator.offline.data.ml.NLLBTranslator
+import com.translator.offline.data.ml.TranslatorManager
 import com.translator.offline.domain.model.Translation
 import com.translator.offline.domain.repository.TranslationRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,26 +13,23 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Repository para tradução usando NLLB-200 (Meta AI)
+ * Repository que usa TranslatorManager para tradução
  * 
- * - Tradução 100% offline
- * - Precisão ~85-95% (melhor que 70-80% do projeto em C)
- * - Modelos baixados localmente (~30-60MB por par de idiomas)
- * - 200+ idiomas suportados
+ * Oferece 2 modos ao usuário:
+ * - MODO LEVE: ~5MB, rápido, 60-70% precisão
+ * - MODO AVANÇADO: ~150MB, NLLB-200, 85-95% precisão
  */
 @Singleton
 class TranslationRepositoryImpl @Inject constructor(
     private val dao: TranslationHistoryDao,
-    @ApplicationContext private val context: Context
+    private val translatorManager: TranslatorManager
 ) : TranslationRepository {
-
-    private val nllbTranslator = NLLBTranslator(context)
 
     override suspend fun translateText(text: String, sourceLang: String, targetLang: String): Result<String> {
         return withContext(Dispatchers.IO) {
             try {
-                val translatedText = nllbTranslator.translate(text, sourceLang, targetLang)
-                Result.success(translatedText)
+                val result = translatorManager.translate(text, sourceLang, targetLang)
+                result
             } catch (e: Exception) {
                 Result.failure(e)
             }
@@ -58,6 +53,12 @@ class TranslationRepositoryImpl @Inject constructor(
     override suspend fun clearHistory() {
         dao.clearAll()
     }
+
+    // Métodos do TranslatorManager para UI
+    fun getCurrentMode(): String = translatorManager.getCurrentMode()
+    fun setMode(mode: String) = translatorManager.setMode(mode)
+    fun getRecommendedMode(): String = translatorManager.getRecommendedMode()
+    fun getModeInfo() = translatorManager.getModeInfo()
 
     private fun TranslationHistoryEntity.toDomain(): Translation {
         return Translation(

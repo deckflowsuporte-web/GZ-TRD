@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,19 +25,42 @@ fun MainScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showHistory by remember { mutableStateOf(false) }
+    var showModeSelector by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Tradutor Offline") },
                 actions = {
+                    // Indicador do modo atual
+                    TextButton(onClick = { showModeSelector = true }) {
+                        Text(
+                            text = when (uiState.translationMode) {
+                                "light" -> "⚡ Leve"
+                                "advanced" -> "🤖 Avançado"
+                                else -> "🔄 Auto"
+                            },
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                     IconButton(onClick = { showHistory = !showHistory }) {
-                        Text(if (showHistory) "Traduzir" else "Histórico")
+                        Text(if (showHistory) "📝" else "📜")
                     }
                 }
             )
         }
     ) { padding ->
+        // Dialog para selecionar modo
+        if (showModeSelector) {
+            ModeSelectionDialog(
+                currentMode = uiState.translationMode,
+                onModeSelected = { mode ->
+                    viewModel.setTranslationMode(mode)
+                    showModeSelector = false
+                },
+                onDismiss = { showModeSelector = false }
+            )
+        }
         if (showHistory) {
             HistoryContent(
                 history = uiState.history,
@@ -320,4 +344,112 @@ private fun HistoryItem(
             )
         }
     }
+}
+
+/**
+ * Dialog para selecionar o modo de tradução
+ */
+@Composable
+private fun ModeSelectionDialog(
+    currentMode: String,
+    onModeSelected: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Modo de Tradução")
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Escolha como deseja traduzir:",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                
+                // Modo Leve
+                ModeOptionCard(
+                    title = "⚡ Modo Leve",
+                    description = "Dicionário local, rápido",
+                    details = "5MB • 6 idiomas • 60-70% precisão",
+                    isSelected = currentMode == "light",
+                    onClick = { onModeSelected("light") }
+                )
+                
+                // Modo Avançado
+                ModeOptionCard(
+                    title = "🤖 Modo Avançado",
+                    description = "NLLB-200 (IA), máxima qualidade",
+                    details = "150MB • 20 idiomas • 85-95% precisão",
+                    isSelected = currentMode == "advanced",
+                    onClick = { onModeSelected("advanced") }
+                )
+                
+                // Modo Auto
+                ModeOptionCard(
+                    title = "🔄 Automático",
+                    description = "Escolhe o melhor modo",
+                    details = "Adaptativo • Baseado no dispositivo",
+                    isSelected = currentMode == "auto",
+                    onClick = { onModeSelected("auto") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Fechar")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ModeOptionCard(
+    title: String,
+    description: String,
+    details: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) 
+                MaterialTheme.colorScheme.primaryContainer 
+            else 
+                MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = isSelected,
+                onClick = onClick
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = details,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
 }

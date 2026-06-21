@@ -24,7 +24,8 @@ data class TranslatorUiState(
     val isLoading: Boolean = false,
     val isModelDownloading: Boolean = false,
     val error: String? = null,
-    val history: List<Translation> = emptyList()
+    val history: List<Translation> = emptyList(),
+    val translationMode: String = "light" // light, advanced, auto
 )
 
 @HiltViewModel
@@ -39,6 +40,7 @@ class TranslatorViewModel @Inject constructor(
 
     init {
         loadHistory()
+        loadCurrentMode()
     }
 
     private fun loadHistory() {
@@ -46,6 +48,25 @@ class TranslatorViewModel @Inject constructor(
             getTranslationHistoryUseCase().collect { history ->
                 _uiState.update { it.copy(history = history) }
             }
+        }
+    }
+
+    private fun loadCurrentMode() {
+        // Obter modo salvo (se repository implementar)
+        try {
+            val mode = (repository as? com.translator.offline.data.repository.TranslationRepositoryImpl)?.getCurrentMode() ?: "light"
+            _uiState.update { it.copy(translationMode = mode) }
+        } catch (e: Exception) {
+            // Ignora erro, usa padrão
+        }
+    }
+
+    fun setTranslationMode(mode: String) {
+        _uiState.update { it.copy(translationMode = mode) }
+        try {
+            (repository as? com.translator.offline.data.repository.TranslationRepositoryImpl)?.setMode(mode)
+        } catch (e: Exception) {
+            // Ignora
         }
     }
 

@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.translator.offline.data.db.TranslationDatabase
 import com.translator.offline.data.db.dao.TranslationHistoryDao
-import com.translator.offline.data.ml.NLLBTranslator
+import com.translator.offline.data.ml.TranslatorManager
 import com.translator.offline.data.repository.TranslationRepositoryImpl
 import com.translator.offline.domain.repository.TranslationRepository
 import dagger.Module
@@ -36,16 +36,16 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideNLLBTranslator(@ApplicationContext context: Context): NLLBTranslator {
-        return NLLBTranslator(context)
+    fun provideTranslatorManager(@ApplicationContext context: Context): TranslatorManager {
+        return TranslatorManager(context)
     }
 
     @Provides
     @Singleton
     fun provideTranslationRepository(
         dao: TranslationHistoryDao,
-        nllbTranslator: NLLBTranslator
+        translatorManager: TranslatorManager
     ): TranslationRepository {
-        return TranslationRepositoryImpl(dao, nllbTranslator)
+        return TranslationRepositoryImpl(dao, translatorManager)
     }
 }
